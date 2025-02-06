@@ -684,16 +684,6 @@ export async function saveSafeTransaction({
     });
   } catch (error) {
     console.error('Failed to save safe transaction in database');
-
-export async function getAvailableStarterKits() {
-  try {
-    return await db
-      .select()
-      .from(starterKit)
-      .where(isNull(starterKit.claimerId))
-      .orderBy(asc(starterKit.createdAt));
-  } catch (error) {
-    console.error("Failed to get available starter kits");
     throw error;
   }
 }
@@ -713,6 +703,21 @@ export async function getSafeTransactionByHash({
     return transaction;
   } catch (error) {
     console.error('Failed to get safe transaction by hash from database');
+  }
+}
+
+export async function getAvailableStarterKits() {
+  try {
+    return await db
+      .select()
+      .from(starterKit)
+      .where(isNull(starterKit.claimerId))
+      .orderBy(asc(starterKit.createdAt));
+  } catch (error) {
+    console.error("Failed to get available starter kits");
+    throw error;
+  }
+}
 
 export async function claimAvailableStarterKit(userId: string) {
   try {

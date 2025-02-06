@@ -30,7 +30,6 @@ import { z } from "zod";
 import {
   saveUserInformation,
   getUserInformation,
-  deleteUserInformationTool,
 } from "@/lib/ai/tools/user-information";
 import { setupAgentKit } from "@/lib/web3/agentkit/setup";
 import { generateUserProfile } from "@/lib/ai/prompts/user";
@@ -85,6 +84,8 @@ export async function POST(request: Request) {
   const agentKit = await setupAgentKit();
 
   const tools = agentKitToTools(agentKit);
+
+  console.log("");
 
   return createDataStreamResponse({
     execute: (dataStream) => {
