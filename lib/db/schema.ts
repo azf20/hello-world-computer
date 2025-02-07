@@ -10,7 +10,8 @@ import {
   foreignKey,
   boolean,
   bigint,
-} from "drizzle-orm/pg-core";
+  integer,
+} from 'drizzle-orm/pg-core';
 
 export const user = pgTable("User", {
   id: varchar("id", { length: 42 }).primaryKey().notNull(), // Ethereum address
@@ -165,6 +166,15 @@ export const suggestion = pgTable(
   })
 );
 
+export const safeTransaction = pgTable("SafeTransaction", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  transactionHash: text("transactionHash").notNull().unique(),
+  safeAddress: text("safeAddress").notNull(),
+  transactionData: json("transactionData").notNull(),
+  signatureCount: integer("signatureCount").notNull().default(0),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
 export type Suggestion = InferSelectModel<typeof suggestion>;
 
 export type UserKnowledge = InferSelectModel<typeof userKnowledge>;
@@ -172,3 +182,5 @@ export type UserKnowledge = InferSelectModel<typeof userKnowledge>;
 export type StarterKit = InferSelectModel<typeof starterKit>;
 
 export type Charge = InferSelectModel<typeof charge>;
+
+export type SafeTransaction = InferSelectModel<typeof safeTransaction>;

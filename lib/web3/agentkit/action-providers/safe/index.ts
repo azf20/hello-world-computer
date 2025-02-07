@@ -2,12 +2,15 @@ import { ActionProvider, CreateAction, EvmWalletProvider, Network } from '@coinb
 import Safe, {
     OnchainAnalyticsProps,
     PredictedSafeProps,
-    SafeAccountConfig
+    SafeAccountConfig,
+    SigningMethod
 } from '@safe-global/protocol-kit'
 import { waitForTransactionReceipt } from 'viem/actions'
 import { baseSepolia } from 'viem/chains'
-import { CreateSafeSchema } from './schemas';
+import { CreateSafeSchema, CreateSafeTransactionSchema, ExecuteSafeTransactionSchema, SignSafeTransactionSchema } from './schemas';
 import { z } from 'zod';
+import { saveSafeTransaction, getSafeTransactionByHash } from '@/lib/db/queries';
+import { SafeTransaction, SafeMultisigTransactionResponse } from '@safe-global/types-kit';
 
 const onchainAnalytics: OnchainAnalyticsProps = {
     project: 'HELLO_WORLD_COMPUTER', // Required. Always use the same value for your project.
@@ -15,7 +18,6 @@ const onchainAnalytics: OnchainAnalyticsProps = {
 };
 
 export class SafeActionProvider extends ActionProvider {
-
     constructor() {
         super("safe", []);
     }
@@ -52,7 +54,7 @@ export class SafeActionProvider extends ActionProvider {
                 safeAccountConfig
                 // ...
             };
-
+ 
             const protocolKit = await Safe.init({
                 provider: baseSepolia.rpcUrls.default.http[0],
                 signer: walletProvider.getAddress(),
@@ -106,6 +108,125 @@ export class SafeActionProvider extends ActionProvider {
         }
     }
 
+    @CreateAction({
+        name: "create_safe_transaction",
+        description: `
+      This tool will create a transaction for a safe. The transaction is not executed.
+      It takes the following inputs:
+        - safeAddress: The address of the safe
+        - transactions: The transactions to be executed
+      `,
+        schema: CreateSafeTransactionSchema
+    })
+    async createSafeTransaction(
+        walletProvider: EvmWalletProvider,
+        args: z.infer<typeof CreateSafeTransactionSchema>
+    ): Promise<CreateSafeTransactionReturnType> {
+        try {
+            const protocolKit = await Safe.init({
+                provider: baseSepolia.rpcUrls.default.http[0],
+                signer: walletProvider.getAddress(),
+                safeAddress: args.safeAddress
+            });
+
+            const safeTx = await protocolKit.createTransaction({
+                transactions: args.transactions
+            });
+            // Sign the transaction as owner
+            const signedSafeTransaction = await protocolKit.signTransaction(safeTx, SigningMethod.ETH_SIGN_TYPED_DATA);
+            const transactionHash = await protocolKit.getTransactionHash(safeTx);
+            
+            // Store the signed transaction using the new query method
+            await saveSafeTransaction({
+                transactionHash,
+                safeAddress: args.safeAddress,
+                transactionData: signedSafeTransaction,
+            });
+
+            return { transactionHash, signatureCount: Object.keys(signedSafeTransaction.signatures).length };
+        } catch (error: any) {
+            return { error: error.message };
+        }
+    }
+
+    @CreateAction({
+        name: "sign_safe_transaction",
+        description: `
+      This tool will sign a transaction for a safe.
+      It takes the following inputs:
+        - safeAddress: The address of the safe
+        - transactionHash: The hash of the transaction to be signed
+      `,
+        schema: SignSafeTransactionSchema
+    })
+    async signSafeTransaction(
+        walletProvider: EvmWalletProvider,
+        args: z.infer<typeof SignSafeTransactionSchema>
+    ): Promise<SignSafeTransactionReturnType> {
+        try {
+            const protocolKit = await Safe.init({
+                provider: baseSepolia.rpcUrls.default.http[0],
+                signer: walletProvider.getAddress(),
+                safeAddress: args.safeAddress
+            });
+
+            const storedTx = await getSafeTransactionByHash({
+                transactionHash: args.transactionHash
+            });
+
+            const txResponse = await protocolKit.signTransaction(storedTx.transactionData as SafeTransaction | SafeMultisigTransactionResponse, SigningMethod.ETH_SIGN_TYPED_DATA);
+
+            await saveSafeTransaction({
+                transactionHash: args.transactionHash,
+                safeAddress: args.safeAddress,
+                transactionData: txResponse,
+            });
+
+            const signatureCount = Object.keys(txResponse.signatures).length;
+
+            return { transactionHash: args.transactionHash, signatureCount };
+        } catch (error: any) {
+            return { error: error.message };
+        }
+    }
+
+    @CreateAction({
+        name: "execute_safe_transaction",
+        description: `
+      This tool will execute a transaction for a safe assuming it has the required amount of signatures.
+      It takes the following inputs:
+        - safeAddress: The address of the safe
+        - transactionHash: The hash of the transaction to be executed
+      `,
+        schema: ExecuteSafeTransactionSchema
+    })
+    async executeSafeTransaction(
+        walletProvider: EvmWalletProvider,
+        args: z.infer<typeof ExecuteSafeTransactionSchema>
+    ): Promise<ExecuteSafeTransactionReturnType> {
+        try {
+            const protocolKit = await Safe.init({
+                provider: baseSepolia.rpcUrls.default.http[0],
+                signer: walletProvider.getAddress(),
+                safeAddress: args.safeAddress
+            });
+
+            // Get the transaction using the new query method
+            const storedTx = await getSafeTransactionByHash({
+                transactionHash: args.transactionHash
+            });
+
+            if (!storedTx) {
+                throw new Error("Transaction not found");
+            }
+
+            const txResponse = await protocolKit.executeTransaction(storedTx.transactionData as SafeTransaction | SafeMultisigTransactionResponse);
+
+            return { transactionHash: txResponse.hash };
+        } catch (error: any) {
+            return { error: error.message };
+        }
+    }
 
     /**
      * Checks if the Safe action provider supports the given network.

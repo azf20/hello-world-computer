@@ -3,7 +3,6 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
-
 import {
   user,
   chat,
@@ -18,8 +17,11 @@ import {
   type UserKnowledge,
   charge,
   type UserWithRelations,
+  safeTransaction
 } from "./schema";
 import type { BlockKind } from "@/components/block";
+import { SafeTransaction as SafeTxType, SafeMultisigTransactionResponse } from '@safe-global/types-kit';
+
 
 // Optionally, if not using email/pass login, you can
 // use the Drizzle adapter for Auth.js / NextAuth
@@ -632,6 +634,73 @@ export async function getUserCharges(userId: string) {
       .orderBy(desc(charge.createdAt));
   } catch (error) {
     console.error("Failed to get user charges");
+    throw error;
+  }
+}
+
+export async function saveSafeTransaction({
+  transactionHash,
+  safeAddress,
+  transactionData,
+}: {
+  transactionHash: string;
+  safeAddress: string;
+  transactionData: SafeTxType | SafeMultisigTransactionResponse;
+}) {
+  try {
+    const existingTx = await getSafeTransactionByHash({ transactionHash });
+    
+    if (existingTx) {
+      // Merge signatures from existing and new transaction data
+      const existingSignatures = (existingTx.transactionData as SafeTxType).signatures || {};
+      const newSignatures = transactionData.signatures || {};
+      
+      const mergedTransactionData = {
+        ...transactionData,
+        signatures: {
+          ...existingSignatures,
+          ...newSignatures
+        }
+      };
+
+      // Update existing transaction with merged data
+      return await db
+        .update(safeTransaction)
+        .set({
+          transactionData: mergedTransactionData,
+        })
+        .where(eq(safeTransaction.transactionHash, transactionHash));
+    }
+
+    // Insert new transaction if it doesn't exist
+    return await db.insert(safeTransaction).values({
+      transactionHash,
+      safeAddress,
+      signatureCount: Object.keys(transactionData?.signatures || {}).length,
+      transactionData,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.error('Failed to save safe transaction in database');
+    throw error;
+  }
+}
+
+export async function getSafeTransactionByHash({
+  transactionHash,
+}: {
+  transactionHash: string;
+}) {
+  try {
+    const [transaction] = await db
+      .select()
+      .from(safeTransaction)
+      .where(eq(safeTransaction.transactionHash, transactionHash))
+      .limit(1);
+    
+    return transaction;
+  } catch (error) {
+    console.error('Failed to get safe transaction by hash from database');
     throw error;
   }
 }
