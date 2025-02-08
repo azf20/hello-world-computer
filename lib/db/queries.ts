@@ -645,22 +645,23 @@ export async function saveSafeTransaction({
 }: {
   transactionHash: string;
   safeAddress: string;
-  transactionData: SafeTxType | SafeMultisigTransactionResponse;
+  transactionData: SafeTxType;
 }) {
   try {
     const existingTx = await getSafeTransactionByHash({ transactionHash });
     
     if (existingTx) {
-      // Merge signatures from existing and new transaction data
-      const existingSignatures = (existingTx.transactionData as SafeTxType).signatures || {};
-      const newSignatures = transactionData.signatures || {};
+      // Merge signatures from existing and new transaction data - this is an object since it came from db
+      const existingSignatures = new Map(Object.entries((existingTx.transactionData as SafeTxType).signatures));
+      // This is already a map
+      const newSignatures = transactionData.signatures;
       
       const mergedTransactionData = {
-        ...transactionData,
-        signatures: {
+        ...transactionData.data,
+        signatures: Object.fromEntries(new Map([
           ...existingSignatures,
           ...newSignatures
-        }
+        ]))
       };
 
       // Update existing transaction with merged data
@@ -676,7 +677,7 @@ export async function saveSafeTransaction({
     return await db.insert(safeTransaction).values({
       transactionHash,
       safeAddress,
-      signatureCount: Object.keys(transactionData?.signatures || {}).length,
+      signatureCount: transactionData.signatures.size,
       transactionData,
       createdAt: new Date(),
     });

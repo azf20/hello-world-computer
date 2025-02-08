@@ -1,5 +1,6 @@
 import { ActionProvider, CreateAction, EvmWalletProvider, Network } from '@coinbase/agentkit';
 import Safe, {
+    EthSafeTransaction,
     OnchainAnalyticsProps,
     PredictedSafeProps,
     SafeAccountConfig,
@@ -10,7 +11,8 @@ import { baseSepolia } from 'viem/chains'
 import { CreateSafeSchema, CreateSafeTransactionSchema, ExecuteSafeTransactionSchema, SignSafeTransactionSchema } from './schemas';
 import { z } from 'zod';
 import { saveSafeTransaction, getSafeTransactionByHash } from '@/lib/db/queries';
-import { SafeTransaction, SafeMultisigTransactionResponse } from '@safe-global/types-kit';
+import { SafeTransaction, SafeMultisigTransactionResponse, SafeTransactionData } from '@safe-global/types-kit';
+import { adjustVInSignature, EthSafeSignature } from '@safe-global/protocol-kit/dist/src/utils';
 
 const onchainAnalytics: OnchainAnalyticsProps = {
     project: 'HELLO_WORLD_COMPUTER', // Required. Always use the same value for your project.
@@ -123,27 +125,31 @@ export class SafeActionProvider extends ActionProvider {
         args: z.infer<typeof CreateSafeTransactionSchema>
     ): Promise<CreateSafeTransactionReturnType> {
         try {
+            const signerAddress = walletProvider.getAddress();
             const protocolKit = await Safe.init({
                 provider: baseSepolia.rpcUrls.default.http[0],
-                signer: walletProvider.getAddress(),
+                signer: signerAddress,
                 safeAddress: args.safeAddress
             });
 
             const safeTx = await protocolKit.createTransaction({
                 transactions: args.transactions
             });
-            // Sign the transaction as owner
-            const signedSafeTransaction = await protocolKit.signTransaction(safeTx, SigningMethod.ETH_SIGN_TYPED_DATA);
             const transactionHash = await protocolKit.getTransactionHash(safeTx);
-            
+            const signedTxHash = await walletProvider.signMessage(transactionHash);
+
+            const signature = await adjustVInSignature(SigningMethod.ETH_SIGN, signedTxHash, transactionHash, signerAddress);
+            const safeSignature = new EthSafeSignature(signerAddress, signature);
+            safeTx.addSignature(safeSignature);
+
             // Store the signed transaction using the new query method
             await saveSafeTransaction({
                 transactionHash,
                 safeAddress: args.safeAddress,
-                transactionData: signedSafeTransaction,
+                transactionData: safeTx,
             });
 
-            return { transactionHash, signatureCount: Object.keys(signedSafeTransaction.signatures).length };
+            return { transactionHash, signatureCount: safeTx.signatures.size };
         } catch (error: any) {
             return { error: error.message };
         }
@@ -164,25 +170,30 @@ export class SafeActionProvider extends ActionProvider {
         args: z.infer<typeof SignSafeTransactionSchema>
     ): Promise<SignSafeTransactionReturnType> {
         try {
-            const protocolKit = await Safe.init({
-                provider: baseSepolia.rpcUrls.default.http[0],
-                signer: walletProvider.getAddress(),
-                safeAddress: args.safeAddress
-            });
+            const signerAddress = walletProvider.getAddress();
 
             const storedTx = await getSafeTransactionByHash({
                 transactionHash: args.transactionHash
             });
 
-            const txResponse = await protocolKit.signTransaction(storedTx.transactionData as SafeTransaction | SafeMultisigTransactionResponse, SigningMethod.ETH_SIGN_TYPED_DATA);
+            if (!storedTx) {
+                throw new Error("Transaction not found");
+            }
+
+            const safeTx = new EthSafeTransaction(storedTx.transactionData as SafeTransactionData);
+
+            const signedTxHash = await walletProvider.signMessage(args.transactionHash);
+
+            const signature = await adjustVInSignature(SigningMethod.ETH_SIGN, signedTxHash, args.transactionHash, signerAddress);
+            const safeSignature = new EthSafeSignature(signerAddress, signature);
+            safeTx.addSignature(safeSignature);
+            const signatureCount = safeTx.signatures.size;
 
             await saveSafeTransaction({
                 transactionHash: args.transactionHash,
                 safeAddress: args.safeAddress,
-                transactionData: txResponse,
+                transactionData: safeTx,
             });
-
-            const signatureCount = Object.keys(txResponse.signatures).length;
 
             return { transactionHash: args.transactionHash, signatureCount };
         } catch (error: any) {
@@ -220,7 +231,28 @@ export class SafeActionProvider extends ActionProvider {
                 throw new Error("Transaction not found");
             }
 
-            const txResponse = await protocolKit.executeTransaction(storedTx.transactionData as SafeTransaction | SafeMultisigTransactionResponse);
+            const safeTx = new EthSafeTransaction(storedTx.transactionData as SafeTransactionData);
+            
+
+            const client =
+                await protocolKit.getSafeProvider().getExternalSigner();
+
+            const tx = await client!.prepareTransactionRequest({
+                to: args.safeAddress,
+                value: BigInt(safeTx.data.value || 0),
+                data: safeTx.data.data as `0x${string}`,
+                chain: baseSepolia
+            });
+
+            const transactionHash = await walletProvider.sendTransaction(tx);
+
+            await waitForTransactionReceipt(
+                client!,
+                { hash: transactionHash }
+            );
+
+
+            const txResponse = await protocolKit.executeTransaction(storedTx.transactionData as SafeTransaction);
 
             return { transactionHash: txResponse.hash };
         } catch (error: any) {
