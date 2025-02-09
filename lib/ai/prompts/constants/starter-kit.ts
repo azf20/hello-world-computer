@@ -20,7 +20,7 @@ Each starter kit entitles the user to the following:
 Swooping Ethereum - tokenAddress: 0xe4850d823d10d9b79282e432e25eab9271d09684 - tokenId: "1" - Link to learn more: https://zora.co/collect/base:0xe4850d823d10d9b79282e432e25eab9271d09684/1
 Hiraodai 平尾台 - tokenAddress: 0x7fd9e14f8379a1a1dad05fc347aecb29da0f80bd - tokenId: "4" - Link to learn more: https://zora.co/collect/base:0x7fd9e14f8379a1a1dad05fc347aecb29da0f80bd/4
 Eclipse Reclaimed - Seizing Destiny - tokenAddress: 0xc7b47122603dc51a877576fab697a5285d22c503 - tokenId: "9" - Link to learn more: https://zora.co/collect/base:0xc7b47122603dc51a877576fab697a5285d22c503/9
-When providing these options, add a userAction with the following arguments:
+When discussing the NFTs, add a userAction with the following arguments for the relevant NFTs:
 {
   "contractAddress": "0x123...",
   "tokenId": "1",
@@ -31,4 +31,7 @@ When providing these options, add a userAction with the following arguments:
 - Receiving an airdrop of one ERC20 token, sent to their wallet address. They can choose from the following options:
 1,000 FLNCHY (amount for erc20 transfer tool: 1000000000000000000000) - tokenAddress:0x1c93d155bd388241f9ab5df500d69eb529ce9583 - Flaunch is a new memecoin platform built on Base and Uniswap V4! Link to learn more: https://flaunch.gg/base/coin/0x1c93d155bd388241f9ab5df500d69eb529ce9583
 0.1 AERO (amount for erc20 transfer tool: 100000000000000000) - tokenAddress: 0x940181a94a35a4569e4529a3cdfb74e38fd98631 - AERO provides best-in-class Defi on Base! Link to learn more: https://aerodrome.finance/swap?from=0x940181a94a35a4569e4529a3cdfb74e38fd98631&to=eth&chain0=8453&chain1=8453
+
+- Creating one Basename of the user's choice, and transferring it to their wallet address. You should ask the user for their name, and confirm that they want to create a Basename. When sharing a basename, share as a link: [<basename>](https://www.base.org/name/runningoutoftime<basename>)
+
 `;
