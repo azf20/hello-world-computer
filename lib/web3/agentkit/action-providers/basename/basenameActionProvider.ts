@@ -26,7 +26,11 @@ import {
   REGISTRAR_ABI,
   BASE_REGISTRAR_TRANSFER_ABI,
 } from "./constants";
-import { RegisterBasenameSchema, TransferBasenameSchema } from "./schemas";
+import {
+  RegisterBasenameSchema,
+  TransferBasenameSchema,
+  RegisterAndTransferBasenameSchema,
+} from "./schemas";
 
 /**
  * Action provider for registering Basenames.
@@ -255,6 +259,58 @@ The agent must have a wallet connected that owns the Basename. The transfer will
           error instanceof Error ? error.message : String(error)
         }`
       );
+    }
+  }
+
+  /**
+   * Registers a Basename and immediately transfers it to another address.
+   *
+   * @param wallet - The wallet to use for the registration and transfer.
+   * @param args - The arguments for the registration and transfer.
+   * @returns A string indicating the success or failure of both operations.
+   */
+
+  @CreateAction({
+    name: "register_and_transfer_basename",
+    description: `
+This tool will register a Basename and immediately transfer it to a new owner.
+When your network ID is 'base-mainnet', the name must end with .base.eth, and when your network ID is 'base-sepolia', it must end with .basetest.eth.
+The tool will:
+1. Register the Basename to the agent's wallet
+2. Transfer ownership to the specified destination address
+`,
+    schema: RegisterAndTransferBasenameSchema,
+  })
+  async registerAndTransfer(
+    wallet: EvmWalletProvider,
+    args: z.infer<typeof RegisterAndTransferBasenameSchema>
+  ): Promise<string> {
+    try {
+      // First register the basename
+      const registerResult = await this.register(wallet, {
+        basename: args.basename,
+        amount: args.amount,
+      });
+
+      if (!registerResult.startsWith("Successfully")) {
+        throw new Error(registerResult);
+      }
+
+      // Then transfer it
+      const isMainnet = wallet.getNetwork().networkId === "base-mainnet";
+      const transferResult = await this.transfer(wallet, {
+        basename: args.basename,
+        destination: args.destination,
+        contractAddress: isMainnet
+          ? BASENAMES_BASE_REGISTRAR_ADDRESS_MAINNET
+          : BASENAMES_BASE_REGISTRAR_ADDRESS_TESTNET,
+      });
+
+      return `${registerResult}\n${transferResult}`;
+    } catch (error) {
+      return `Error in register and transfer process: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
     }
   }
 

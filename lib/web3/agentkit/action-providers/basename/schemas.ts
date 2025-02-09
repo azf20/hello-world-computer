@@ -29,3 +29,9 @@ export const TransferBasenameSchema = z
   })
   .strip()
   .describe("Instructions for transferring basename");
+
+export const RegisterAndTransferBasenameSchema = z.object({
+  basename: z.string().min(1),
+  amount: z.string(),
+  destination: z.string(),
+});
