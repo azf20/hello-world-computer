@@ -170,7 +170,7 @@ export const safeTransaction = pgTable("SafeTransaction", {
   id: uuid("id").primaryKey().notNull().defaultRandom(),
   transactionHash: text("transactionHash").notNull().unique(),
   safeAddress: text("safeAddress").notNull(),
-  transactionData: json("transactionData").notNull(),
+  transaction: json("transaction").notNull(),
   signatureCount: integer("signatureCount").notNull().default(0),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });

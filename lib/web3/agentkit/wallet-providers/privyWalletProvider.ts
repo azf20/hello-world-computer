@@ -1,6 +1,6 @@
 import { PrivyClient } from "@privy-io/server-auth";
 import { createViemAccount } from "@privy-io/server-auth/viem";
-import { ViemWalletProvider } from "@coinbase/agentkit";
+import { ViemWalletProvider } from "./viemWalletProvider";
 import { createWalletClient, http, type WalletClient } from "viem";
 import { NETWORK_ID_TO_VIEM_CHAIN } from "./network";
 

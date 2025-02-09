@@ -20,7 +20,7 @@ import {
   safeTransaction
 } from "./schema";
 import type { BlockKind } from "@/components/block";
-import { SafeTransaction as SafeTxType, SafeMultisigTransactionResponse } from '@safe-global/types-kit';
+import { SafeTransaction as SafeTxType } from '@safe-global/types-kit';
 
 
 // Optionally, if not using email/pass login, you can
@@ -641,34 +641,35 @@ export async function getUserCharges(userId: string) {
 export async function saveSafeTransaction({
   transactionHash,
   safeAddress,
-  transactionData,
+  transaction,
 }: {
   transactionHash: string;
   safeAddress: string;
-  transactionData: SafeTxType;
+  transaction: SafeTxType;
 }) {
   try {
     const existingTx = await getSafeTransactionByHash({ transactionHash });
     
     if (existingTx) {
       // Merge signatures from existing and new transaction data - this is an object since it came from db
-      const existingSignatures = new Map(Object.entries((existingTx.transactionData as SafeTxType).signatures));
+      const existingSignatures = new Map(Object.entries((existingTx.transaction as SafeTxType).signatures));
       // This is already a map
-      const newSignatures = transactionData.signatures;
-      
+      const newSignatures = transaction.signatures;
+      const mergedSignatures = Object.fromEntries(new Map([
+        ...existingSignatures,
+        ...newSignatures
+      ]));
       const mergedTransactionData = {
-        ...transactionData.data,
-        signatures: Object.fromEntries(new Map([
-          ...existingSignatures,
-          ...newSignatures
-        ]))
+        data:transaction.data,
+        signatures: mergedSignatures,
+        signatureCount: mergedSignatures.size
       };
 
       // Update existing transaction with merged data
       return await db
         .update(safeTransaction)
         .set({
-          transactionData: mergedTransactionData,
+          transaction: mergedTransactionData,
         })
         .where(eq(safeTransaction.transactionHash, transactionHash));
     }
@@ -677,8 +678,8 @@ export async function saveSafeTransaction({
     return await db.insert(safeTransaction).values({
       transactionHash,
       safeAddress,
-      signatureCount: transactionData.signatures.size,
-      transactionData,
+      signatureCount: transaction.signatures.size,
+      transaction,
       createdAt: new Date(),
     });
   } catch (error) {
