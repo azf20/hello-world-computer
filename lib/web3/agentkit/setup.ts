@@ -8,6 +8,7 @@ import { erc20ActionProvider } from "./action-providers/erc20";
 import { safeActionProvider } from "./action-providers/safe";
 import { alchemyActionProvider } from "./action-providers/alchemy";
 import { zoraActionProvider } from "./action-providers/zora";
+import { basenameActionProvider } from "./action-providers/basename";
 
 export const setupAgentKit = async () => {
   const activeChain =
@@ -30,6 +31,7 @@ export const setupAgentKit = async () => {
       walletActionProvider(),
       erc20ActionProvider(),
       safeActionProvider(),
+      basenameActionProvider(),
       alchemyActionProvider(process.env.ALCHEMY_API_KEY as string),
       zoraActionProvider(),
     ],

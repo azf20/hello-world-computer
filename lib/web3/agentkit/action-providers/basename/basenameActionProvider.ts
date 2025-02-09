@@ -61,15 +61,12 @@ Basename fails, you should prompt to try again with a more unique name.
     args: z.infer<typeof RegisterBasenameSchema>
   ): Promise<string> {
     const address = wallet.getAddress();
-    console.log("address", address);
     const isMainnet = wallet.getNetwork().networkId === "base-mainnet";
 
     const suffix = isMainnet ? ".base.eth" : ".basetest.eth";
     if (!args.basename.endsWith(suffix)) {
       args.basename += suffix;
     }
-
-    console.log("in here");
 
     const l2ResolverAddress = isMainnet
       ? L2_RESOLVER_ADDRESS_MAINNET
@@ -156,12 +153,6 @@ The agent must have a wallet connected that owns the Basename. The transfer will
     const l2ResolverAddress = isMainnet
       ? L2_RESOLVER_ADDRESS_MAINNET
       : L2_RESOLVER_ADDRESS_TESTNET;
-
-    console.log("Base Name", args.basename);
-    console.log("Agent Address", agentAddress);
-    console.log("mainnet", isMainnet);
-    console.log("l2ResolverAddress", l2ResolverAddress);
-    console.log("Destination Address", args.destination);
 
     // Set the address record for the basename
     try {

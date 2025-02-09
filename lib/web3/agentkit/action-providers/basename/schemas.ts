@@ -23,7 +23,9 @@ export const TransferBasenameSchema = z
     contractAddress: z
       .string()
       .describe("The contract address of the basename contract to transfer"),
-    destination: z.string().describe("The destination to transfer the funds"),
+    destination: z
+      .string()
+      .describe("The destination to transfer the ens name"),
   })
   .strip()
   .describe("Instructions for transferring basename");
