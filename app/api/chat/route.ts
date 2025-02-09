@@ -1,8 +1,8 @@
-import { 
+import {
   type Message,
   createDataStreamResponse,
   streamText,
-  Output
+  Output,
 } from "ai";
 
 import { auth } from "@/app/auth";
