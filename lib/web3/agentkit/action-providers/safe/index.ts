@@ -7,7 +7,7 @@ import Safe, {
     SigningMethod
 } from '@safe-global/protocol-kit'
 import { waitForTransactionReceipt } from 'viem/actions'
-import { baseSepolia } from 'viem/chains'
+import { baseSepolia, base } from 'viem/chains'
 import { CreateSafeSchema, CreateSafeTransactionSchema, ExecuteSafeTransactionSchema, SignSafeTransactionSchema } from './schemas';
 import { z } from 'zod';
 import { saveSafeTransaction, getSafeTransactionByHash } from '@/lib/db/queries';
@@ -47,6 +47,7 @@ export class SafeActionProvider extends ActionProvider {
         args: z.infer<typeof CreateSafeSchema>
     ): Promise<CreateSafeReturnType> {
         try {
+            const chain = process.env.NEXT_PUBLIC_ACTIVE_CHAIN === "base" ? base : baseSepolia;
             const safeAccountConfig: SafeAccountConfig = {
                 owners: args.owners,
                 threshold: args.threshold
@@ -59,7 +60,7 @@ export class SafeActionProvider extends ActionProvider {
             };
 
             const protocolKit = await Safe.init({
-                provider: baseSepolia.rpcUrls.default.http[0],
+                provider: chain.rpcUrls.default.http[0],
                 signer: walletProvider.getAddress(),
                 predictedSafe,
                 onchainAnalytics // Optional
@@ -79,7 +80,7 @@ export class SafeActionProvider extends ActionProvider {
                 to: deploymentTransaction.to,
                 value: BigInt(deploymentTransaction.value),
                 data: deploymentTransaction.data as `0x${string}`,
-                chain: baseSepolia
+                chain
             });
 
             if (!tx) {
@@ -126,9 +127,10 @@ export class SafeActionProvider extends ActionProvider {
         args: z.infer<typeof CreateSafeTransactionSchema>
     ): Promise<CreateSafeTransactionReturnType> {
         try {
+            const chain = process.env.NEXT_PUBLIC_ACTIVE_CHAIN === "base" ? base : baseSepolia;
             const signerAddress = walletProvider.getAddress();
             const protocolKit = await Safe.init({
-                provider: baseSepolia.rpcUrls.default.http[0],
+                provider: chain.rpcUrls.default.http[0],
                 signer: signerAddress,
                 safeAddress: args.safeAddress
             });
@@ -206,8 +208,9 @@ export class SafeActionProvider extends ActionProvider {
         args: z.infer<typeof ExecuteSafeTransactionSchema>
     ): Promise<ExecuteSafeTransactionReturnType> {
         try {
+            const chain = process.env.NEXT_PUBLIC_ACTIVE_CHAIN === "base" ? base : baseSepolia;
             const protocolKit = await Safe.init({
-                provider: baseSepolia.rpcUrls.default.http[0],
+                provider: chain.rpcUrls.default.http[0],
                 signer: walletProvider.getAddress(),
                 safeAddress: args.safeAddress
             });
@@ -222,7 +225,7 @@ export class SafeActionProvider extends ActionProvider {
                 to: args.safeAddress as `0x${string}`,
                 value: 0n,
                 data: encodedTransaction + onchainIdentifier as `0x${string}`,
-                chain: baseSepolia
+                chain
             };
 
             const client =
