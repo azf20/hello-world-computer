@@ -178,7 +178,9 @@ The agent must have a wallet connected that owns the Basename. The transfer will
       const addrReceipt = await wallet.waitForTransactionReceipt(setAddrHash);
       console.log(
         "Set address record transaction completed in block",
-        addrReceipt.blockNumber
+        addrReceipt.blockNumber,
+        "with tx:",
+        setAddrHash
       );
 
       // Step 2: Set the name record after address record completes
@@ -193,7 +195,9 @@ The agent must have a wallet connected that owns the Basename. The transfer will
       const nameReceipt = await wallet.waitForTransactionReceipt(setNameHash);
       console.log(
         "Set name record transaction completed in block",
-        nameReceipt.blockNumber
+        nameReceipt.blockNumber,
+        "with tx:",
+        setNameHash
       );
 
       // Step 3: Reclaim the basename after name record completes
@@ -222,8 +226,37 @@ The agent must have a wallet connected that owns the Basename. The transfer will
       );
       console.log(
         "Reclaim transaction completed in block",
-        reclaimReceipt.blockNumber
+        reclaimReceipt.blockNumber,
+        "with tx:",
+        reclaimHash
       );
+
+      // Step 4: Transfer the ENS name
+      const transferHash = await wallet.sendTransaction({
+        to: baseRegistrarAddress,
+        data: encodeFunctionData({
+          abi: BASE_REGISTRAR_TRANSFER_ABI,
+          functionName: "safeTransferFrom",
+          args: [
+            agentAddress as `0x${string}`,
+            args.destination as `0x${string}`,
+            tokenId,
+          ],
+        }),
+        gas: 100000n,
+      });
+
+      const transferReceipt = await wallet.waitForTransactionReceipt(
+        transferHash
+      );
+      console.log(
+        "Transfer transaction completed in block",
+        transferReceipt.blockNumber,
+        "with tx:",
+        transferHash
+      );
+
+      return `Successfully transferred basename ${args.basename} to ${args.destination}`;
     } catch (error) {
       console.error("Error in transfer process:", error);
       throw new Error(
@@ -232,84 +265,6 @@ The agent must have a wallet connected that owns the Basename. The transfer will
         }`
       );
     }
-
-    ////////////
-
-    return "Successfully transferred basename";
-    const contractAddress = isMainnet
-      ? BASENAMES_BASE_REGISTRAR_ADDRESS_MAINNET
-      : BASENAMES_BASE_REGISTRAR_ADDRESS_TESTNET;
-
-    console.log("contractAddress", contractAddress);
-
-    // balanceOf
-    const balance = await wallet.readContract({
-      address: contractAddress,
-      abi: BASE_REGISTRAR_TRANSFER_ABI,
-      functionName: "balanceOf",
-      args: [agentAddress],
-    });
-    console.log("balance", balance);
-
-    const tokenId = BigInt(keccak256(toBytes(args.basename)));
-    console.log("tokenId", tokenId);
-
-    // First approve the transfer
-    try {
-      // reclaim
-      const reclaimHash = await wallet.sendTransaction({
-        to: contractAddress,
-        data: encodeFunctionData({
-          abi: BASE_REGISTRAR_TRANSFER_ABI,
-          functionName: "reclaim",
-          args: [tokenId, args.destination as `0x${string}`],
-        }),
-      });
-      await wallet.waitForTransactionReceipt(reclaimHash);
-      console.log("Reclaim transaction completed");
-      // const contractAddress = isMainnet
-      //   ? BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_MAINNET
-      //   : BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_TESTNET;
-      // const approvalHash = await wallet.sendTransaction({
-      //   to: contractAddress,
-      //   data: encodeFunctionData({
-      //     abi: REGISTRAR_TRANSFER_ABI,
-      //     functionName: "approve",
-      //     args: [contractAddress, BigInt(namehash(args.basename))],
-      //   }),
-      // });
-      // await wallet.waitForTransactionReceipt(approvalHash);
-      // console.log("Approval transaction completed");
-      return `Successfully approved basename transfer`;
-    } catch (error) {
-      return `Error reclaiming basename transfer: ${error}`;
-    }
-
-    // then transfer the basename
-    // try {
-    //   const contractAddress = isMainnet
-    //     ? BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_MAINNET
-    //     : BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_TESTNET;
-
-    //   const hash = await wallet.sendTransaction({
-    //     to: contractAddress,
-    //     data: encodeFunctionData({
-    //       abi: REGISTRAR_TRANSFER_ABI,
-    //       functionName: "transferFrom",
-    //       args: [
-    //         agentAddress,
-    //         args.destination,
-    //         BigInt(namehash(args.basename)),
-    //       ],
-    //     }),
-    //   });
-
-    //   await wallet.waitForTransactionReceipt(hash);
-
-    //   return `Successfully registered basename ${args.basename} for address ${args.destination}`;
-    // } catch (error) {
-    //   return `Error transferring basename: Error: ${error}`;
-    // }
   }
 
   /**
