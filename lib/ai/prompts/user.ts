@@ -39,17 +39,13 @@ const formatKitInfo = (
   const parts = [];
 
   if (claimedKits.length > 0) {
-    const totalValue = claimedKits.reduce((sum, kit) => sum + kit.value, 0);
-    parts.push(
-      `They have claimed ${claimedKits.length} kits with a total value of ${totalValue}`
-    );
+    parts.push(`They have claimed ${claimedKits.length} kits`);
   }
 
   if (createdKits.length > 0) {
     const unclaimedKits = createdKits.filter((kit) => !kit.claimedAt);
-    const totalValue = createdKits.reduce((sum, kit) => sum + kit.value, 0);
     parts.push(
-      `They have created ${createdKits.length} kits with a total value of ${totalValue}, of which ${unclaimedKits.length} are unclaimed`
+      `They have created ${createdKits.length}, of which ${unclaimedKits.length} are unclaimed`
     );
   }
 
@@ -79,7 +75,7 @@ export const generateUserProfile = ({
   attachments?: Attachment[];
 }): string => {
   if (!userInfo) {
-    return "User is not signed in";
+    return "User does not have a profile yet.";
   }
 
   const sections = [

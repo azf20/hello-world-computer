@@ -5,6 +5,8 @@ import { useCallback, } from "react";
 import type { UserAction } from "@/lib/utils/message-helpers";
 import { useChatContext } from "@/contexts/chat-context";
 import { StarterKitCheckout } from "./starter-kit-checkout";
+import { NFTCard } from "@coinbase/onchainkit/nft";
+import { NFTMedia, NFTNetwork, NFTTitle } from "@coinbase/onchainkit/nft/view";
 
 interface ActionButtonsProps {
   args: Array<Record<string, any>>;
@@ -82,6 +84,7 @@ export function InteractiveElement({
   const transactionAction = actions.find((a) => a.action === "transaction");
   const optionsAction = actions.find((a) => a.action === "options");
   const helpAction = actions.find((a) => a.action === "help");
+  const showNftActions = actions.filter((a) => a.action === "show-nft");
 
   return (
     <div className="flex flex-col gap-4">
@@ -130,6 +133,22 @@ export function InteractiveElement({
         >
           {helpAction.label || "Help, I don't understand"}
         </Button>
+      )}
+
+      {showNftActions.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-4">
+          {showNftActions.map((action, index) => (
+            <NFTCard
+              key={`${action.args?.[0].contractAddress}-${action.args?.[0].tokenId}-${index}`}
+              contractAddress={action.args?.[0]?.contractAddress}
+              tokenId={action.args?.[0]?.tokenId}
+            >
+              <NFTMedia />
+              <NFTTitle />
+              <NFTNetwork />
+            </NFTCard>
+          ))}
+        </div>
       )}
     </div>
   );

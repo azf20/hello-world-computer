@@ -2,6 +2,8 @@ import { z } from "zod";
 import {
   getUnclaimedStarterKits,
   claimStarterKit as claimKit,
+  getAvailableStarterKits,
+  claimAvailableStarterKit,
 } from "@/lib/db/queries";
 import type { Session } from "next-auth";
 import { tool } from "ai";
@@ -69,6 +71,49 @@ export const giveStarterKitTool = ({ session }: StarterKitProps) =>
     },
   });
 
+export const getAvailableStarterKitsTool = () =>
+  tool({
+    description: "Get a list of all unclaimed starter kits that are available",
+    parameters: z.object({}),
+    execute: async () => {
+      try {
+        const kits = await getAvailableStarterKits();
+        return {
+          success: true,
+          kits,
+          message: `Found ${kits.length} available starter kits`,
+        };
+      } catch (error) {
+        return { error: "Failed to get available starter kits" };
+      }
+    },
+  });
+
+export const claimAvailableStarterKitTool = () =>
+  tool({
+    description: "Claim the oldest available starter kit for a given user",
+    parameters: z.object({
+      userId: z.string().length(42),
+    }),
+    execute: async ({ userId }) => {
+      try {
+        const kit = await claimAvailableStarterKit(userId);
+
+        if (!kit) {
+          return { error: "No starter kits available to claim" };
+        }
+
+        return {
+          success: true,
+          kit,
+          message: "Successfully claimed an available starter kit",
+        };
+      } catch (error) {
+        return { error: "Failed to claim available starter kit" };
+      }
+    },
+  });
+
 export const starterKitTools = {
   claim: {
     schema: z.object({
@@ -84,5 +129,17 @@ export const starterKitTools = {
     handler: giveStarterKitTool,
     description:
       "Give one of your unclaimed starter kits to another user by their address",
+  },
+  getAvailable: {
+    schema: z.object({}),
+    handler: getAvailableStarterKitsTool,
+    description: "Get a list of all unclaimed starter kits that are available",
+  },
+  claimAvailable: {
+    schema: z.object({
+      userId: z.string().length(42),
+    }),
+    handler: claimAvailableStarterKitTool,
+    description: "Claim the oldest available starter kit for a given user",
   },
 };

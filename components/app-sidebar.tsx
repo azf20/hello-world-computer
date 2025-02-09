@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Sidebar as SidebarIcon } from "lucide-react";
+import { Plus, Sidebar as SidebarIcon, Sparkles } from "lucide-react";
 import { SidebarHistory } from "@/components/sidebar-history";
 import {
   Sidebar,
@@ -30,6 +30,12 @@ export function AppSidebar() {
             <Link href="/" onClick={() => setOpenMobile(false)}>
               <Plus />
               New Chat
+            </Link>
+          </SidebarMenuButton>
+          <SidebarMenuButton asChild>
+            <Link href="/starter-kits" onClick={() => setOpenMobile(false)}>
+              <Sparkles />
+              Starter Kits
             </Link>
           </SidebarMenuButton>
         </SidebarMenu>

@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useAccount, useAccountEffect, useSignMessage } from "wagmi";
 import { auth, logout } from "@/app/auth-actions";
 import useSWR, { useSWRConfig } from "swr";
+import { useRouter } from "next/navigation";
 
 export function useAuth() {
   const { address, status } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [isLoading, setIsLoading] = useState(false);
   const { mutate: globalMutate } = useSWRConfig();
+  const router = useRouter();
 
   const { data: session, mutate: mutateSession } = useSWR(
     status === "connected" ? ["auth", address] : null,
@@ -26,6 +28,7 @@ export function useAuth() {
       console.log("Wallet disconnected!");
       await logout();
       mutateSession();
+      router.push("/");
     },
   });
 

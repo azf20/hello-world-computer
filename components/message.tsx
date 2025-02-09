@@ -182,10 +182,7 @@ const PurePreviewMessage = ({
                             isReadonly={isReadonly}
                           />
                         ) : (
-                          <pre>
-                            <p>{`Tool call: ${toolName}`}</p>
-                            {JSON.stringify(result, null, 2).slice(0, 100)}
-                          </pre>
+                          <ToolCallOutput toolName={toolName} result={result} />
                         )}
                       </div>
                     );
@@ -275,5 +272,34 @@ export const ThinkingMessage = () => {
         </div>
       </div>
     </motion.div>
+  );
+};
+
+const ToolCallOutput = ({
+  toolName,
+  result,
+}: {
+  toolName: string;
+  result: any;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <pre className="bg-muted p-2 rounded-md text-xs">
+      <p>{`Tool call: ${toolName}`}</p>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="text-xs h-6 my-1"
+      >
+        {isExpanded ? "Show less" : "Show more information"}
+      </Button>
+      {isExpanded && (
+        <div className="mt-1 overflow-auto">
+          {JSON.stringify(result, null, 2)}
+        </div>
+      )}
+    </pre>
   );
 };

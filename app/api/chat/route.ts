@@ -34,6 +34,10 @@ import {
 } from "@/lib/ai/tools/user-information";
 import { setupAgentKit } from "@/lib/web3/agentkit/setup";
 import { generateUserProfile } from "@/lib/ai/prompts/user";
+import {
+  getAvailableStarterKitsTool,
+  claimAvailableStarterKitTool,
+} from "@/lib/ai/tools/starter-kit";
 
 export const maxDuration = 60;
 
@@ -59,10 +63,12 @@ export async function POST(request: Request) {
 
   if (session?.user?.id) {
     const userInfo = await getUser(session.user.id);
-    userProfile = generateUserProfile({
+    userProfile = `USER-WALLET-ADDRESS=${
+      session.user.id
+    }. ${generateUserProfile({
       userInfo: userInfo[0],
       attachments,
-    });
+    })}`;
 
     const chat = await getChatById({ id });
     if (!chat) {
@@ -121,7 +127,8 @@ export async function POST(request: Request) {
           }),
           saveUserInformation: saveUserInformation({ session }),
           getUserInformation: getUserInformation({ session }),
-          deleteUserInformation: deleteUserInformationTool({ session }),
+          getAvailableStarterKits: getAvailableStarterKitsTool(),
+          claimAvailableStarterKit: claimAvailableStarterKitTool(),
         },
         onFinish: async ({ response, reasoning, text }) => {
           // currently the content of the last message is truncated, so passing in the text as a partial fix

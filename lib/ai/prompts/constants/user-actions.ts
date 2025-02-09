@@ -18,5 +18,11 @@ export const userActionsPrompt = `You can propose userActions as a part of your 
    }]"
 7. "help" - To add a help button:
   "Let me know if you need clarification! /help"
+8. "show-nft" - To show an NFT to the user:
+  example arguments: [{
+    "contractAddress": "0x123...",
+    "tokenId": "1",
+    "link": "https://zora.co/collect/base:0xe4850d823d10d9b79282e432e25eab9271d09684/1"
+  }]
 
 You can propose multiple actions at once, just add multiple userActions to the array.`;
