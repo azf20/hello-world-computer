@@ -12,9 +12,8 @@ import { CreateSafeSchema, CreateSafeTransactionSchema, ExecuteSafeTransactionSc
 import { z } from 'zod';
 import { saveSafeTransaction, getSafeTransactionByHash } from '@/lib/db/queries';
 import { SafeTransaction } from '@safe-global/types-kit';
-import { adjustVInSignature, EthSafeSignature, generatePreValidatedSignature } from '@safe-global/protocol-kit/dist/src/utils';
+import { adjustVInSignature, EthSafeSignature } from '@safe-global/protocol-kit/dist/src/utils';
 import { PrivyWalletProvider } from '../../wallet-providers/privyWalletProvider';
-import { ViemWalletProvider } from '../../wallet-providers/viemWalletProvider';
 
 const onchainAnalytics: OnchainAnalyticsProps = {
     project: 'HELLO_WORLD_COMPUTER', // Required. Always use the same value for your project.
@@ -146,7 +145,7 @@ export class SafeActionProvider extends ActionProvider {
             });
 
             // Go ahead and sign with the wallet provider
-            const signedTx = await signTransaction(walletProvider, transactionHash);
+            const signedTx = await signTransaction(walletProvider as PrivyWalletProvider, transactionHash);
             const signatureCount = signedTx.signatures.size;
 
             // Store the signed transaction
@@ -177,7 +176,7 @@ export class SafeActionProvider extends ActionProvider {
         args: z.infer<typeof SignSafeTransactionSchema>
     ): Promise<SignSafeTransactionReturnType> {
         try {
-            const safeTx = await signTransaction(walletProvider, args.transactionHash);
+            const safeTx = await signTransaction(walletProvider as PrivyWalletProvider, args.transactionHash);
             const signatureCount = safeTx.signatures.size;
 
             await saveSafeTransaction({
@@ -274,71 +273,13 @@ const getTransactionByHash = async (transactionHash: string): Promise<SafeTransa
     return safeTx;
 }
 
-const signTransaction = async (walletProvider: EvmWalletProvider, transactionHash: string): Promise<SafeTransaction> => {
+const signTransaction = async (walletProvider: PrivyWalletProvider, transactionHash: string): Promise<SafeTransaction> => {
     const safeTx = await getTransactionByHash(transactionHash);
-    const signedTxHash = await (walletProvider as ViemWalletProvider).signMessage({ message: { raw: transactionHash as `0x${string}` } });
+    const signedTxHash = await walletProvider.signMessage({ raw: transactionHash as `0x${string}` });
     const signature = await adjustVInSignature(SigningMethod.ETH_SIGN, signedTxHash, transactionHash, walletProvider.getAddress());
     const safeSignature = new EthSafeSignature(walletProvider.getAddress(), signature);
     safeTx.addSignature(safeSignature);
     return safeTx;
 }
-
-const executeTransaction = async (
-    walletProvider: EvmWalletProvider,
-    safeTransaction: SafeTransaction,
-    safeAddress: string,
-    protocolKit: Safe
-) => {
-    // This is probably not necessary
-    const signedSafeTransaction = await addPreValidatedSignature(walletProvider, safeTransaction, protocolKit)
-
-    // TODO:Check if it has enough signatures
-    // TODO: Check the safe balance
-
-    const onchainIdentifier = protocolKit.getOnchainIdentifier();
-
-    const encodedTransaction = await protocolKit.getEncodedTransaction(signedSafeTransaction);
-
-    const transaction = {
-        to: safeAddress as `0x${string}`,
-        value: 0n,
-        data: encodedTransaction + onchainIdentifier as `0x${string}`,
-        chain: baseSepolia
-    };
-
-    const client =
-        await protocolKit.getSafeProvider().getExternalSigner();
-
-    const prepTx = await client!.prepareTransactionRequest(transaction);
-
-    const hash = await walletProvider.sendTransaction(prepTx);
-
-    return hash;
-};
-
-const addPreValidatedSignature = async (walletProvider: EvmWalletProvider, transaction: SafeTransaction, protocolKit: Safe): Promise<SafeTransaction> => {
-    const signedSafeTransaction = await protocolKit.copyTransaction(transaction)
-
-    const txHash = await protocolKit.getTransactionHash(signedSafeTransaction)
-    const ownersWhoApprovedTx = await protocolKit.getOwnersWhoApprovedTx(txHash)
-
-    for (const owner of ownersWhoApprovedTx) {
-        signedSafeTransaction.addSignature(generatePreValidatedSignature(owner));
-    }
-
-    const owners = await protocolKit.getOwners();
-    const threshold = await protocolKit.getThreshold();
-    const signerAddress = walletProvider.getAddress();
-
-    if (
-        threshold > signedSafeTransaction.signatures.size &&
-        signerAddress &&
-        owners.includes(signerAddress)
-    ) {
-        signedSafeTransaction.addSignature(generatePreValidatedSignature(signerAddress));
-    }
-
-    return signedSafeTransaction;
-};
 
 export const safeActionProvider = () => new SafeActionProvider();
