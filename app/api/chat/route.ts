@@ -1,8 +1,8 @@
-import {
+import { 
   type Message,
   createDataStreamResponse,
   streamText,
-  Output,
+  Output
 } from "ai";
 
 import { auth } from "@/app/auth";
@@ -84,8 +84,6 @@ export async function POST(request: Request) {
   const agentKit = await setupAgentKit();
 
   const tools = agentKitToTools(agentKit);
-
-  console.log("");
 
   return createDataStreamResponse({
     execute: (dataStream) => {
