@@ -3,7 +3,6 @@ import { and, asc, desc, eq, gt, gte, inArray, isNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
-
 import {
   user,
   chat,
@@ -18,8 +17,11 @@ import {
   type UserKnowledge,
   charge,
   type UserWithRelations,
+  safeTransaction
 } from "./schema";
 import type { BlockKind } from "@/components/block";
+import { SafeTransaction as SafeTxType } from '@safe-global/types-kit';
+
 
 // Optionally, if not using email/pass login, you can
 // use the Drizzle adapter for Auth.js / NextAuth
@@ -633,6 +635,74 @@ export async function getUserCharges(userId: string) {
   } catch (error) {
     console.error("Failed to get user charges");
     throw error;
+  }
+}
+
+export async function saveSafeTransaction({
+  transactionHash,
+  safeAddress,
+  transaction,
+}: {
+  transactionHash: string;
+  safeAddress: string;
+  transaction: SafeTxType;
+}) {
+  try {
+    const existingTx = await getSafeTransactionByHash({ transactionHash });
+    
+    if (existingTx) {
+      // Merge signatures from existing and new transaction data - this is an object since it came from db
+      const existingSignatures = new Map(Object.entries((existingTx.transaction as SafeTxType).signatures));
+      // This is already a map
+      const newSignatures = transaction.signatures;
+      const mergedSignatures = Object.fromEntries(new Map([
+        ...existingSignatures,
+        ...newSignatures
+      ]));
+      const mergedTransactionData = {
+        data:transaction.data,
+        signatures: mergedSignatures,
+        signatureCount: mergedSignatures.size
+      };
+
+      // Update existing transaction with merged data
+      return await db
+        .update(safeTransaction)
+        .set({
+          transaction: mergedTransactionData,
+        })
+        .where(eq(safeTransaction.transactionHash, transactionHash));
+    }
+
+    // Insert new transaction if it doesn't exist
+    return await db.insert(safeTransaction).values({
+      transactionHash,
+      safeAddress,
+      signatureCount: transaction.signatures.size,
+      transaction,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.error('Failed to save safe transaction in database');
+    throw error;
+  }
+}
+
+export async function getSafeTransactionByHash({
+  transactionHash,
+}: {
+  transactionHash: string;
+}) {
+  try {
+    const [transaction] = await db
+      .select()
+      .from(safeTransaction)
+      .where(eq(safeTransaction.transactionHash, transactionHash))
+      .limit(1);
+    
+    return transaction;
+  } catch (error) {
+    console.error('Failed to get safe transaction by hash from database');
   }
 }
 

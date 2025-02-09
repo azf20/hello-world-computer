@@ -30,7 +30,6 @@ import { z } from "zod";
 import {
   saveUserInformation,
   getUserInformation,
-  deleteUserInformationTool,
 } from "@/lib/ai/tools/user-information";
 import { setupAgentKit } from "@/lib/web3/agentkit/setup";
 import { generateUserProfile } from "@/lib/ai/prompts/user";
