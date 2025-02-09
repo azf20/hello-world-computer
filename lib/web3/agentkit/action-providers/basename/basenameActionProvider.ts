@@ -1,4 +1,11 @@
-import { encodeFunctionData, Hex, namehash, parseEther } from "viem";
+import {
+  encodeFunctionData,
+  Hex,
+  namehash,
+  parseEther,
+  keccak256,
+  toBytes,
+} from "viem";
 import { z } from "zod";
 import {
   ActionProvider,
@@ -14,8 +21,10 @@ import {
   REGISTRATION_DURATION,
   BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_MAINNET,
   BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_TESTNET,
+  BASENAMES_BASE_REGISTRAR_ADDRESS_MAINNET,
+  BASENAMES_BASE_REGISTRAR_ADDRESS_TESTNET,
   REGISTRAR_ABI,
-  REGISTRAR_TRANSFER_ABI,
+  BASE_REGISTRAR_TRANSFER_ABI,
 } from "./constants";
 import { RegisterBasenameSchema, TransferBasenameSchema } from "./schemas";
 
@@ -154,89 +163,126 @@ The agent must have a wallet connected that owns the Basename. The transfer will
     console.log("l2ResolverAddress", l2ResolverAddress);
     console.log("Destination Address", args.destination);
 
-    const addressData = encodeFunctionData({
-      abi: L2_RESOLVER_ABI,
-      functionName: "setAddr",
-      args: [namehash(args.basename), agentAddress],
-    });
-    const nameData = encodeFunctionData({
-      abi: L2_RESOLVER_ABI,
-      functionName: "setName",
-      args: [namehash(args.basename), args.basename],
-    });
-    console.log("addressData", addressData);
-    console.log("nameData", nameData);
-
-    // const contractAddress = isMainnet
-    //   ? BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_MAINNET
-    //   : BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_TESTNET;
-
-    // console.log("contractAddress", contractAddress);
-
-    // ownerOf
-    // const currentOwner = await wallet.readContract({
-    //   address: contractAddress,
-    //   abi: [
-    //     {
-    //       inputs: [
-    //         {
-    //           internalType: "uint256",
-    //           name: "tokenId",
-    //           type: "uint256",
-    //         },
-    //       ],
-    //       name: "ownerOf",
-    //       outputs: [
-    //         {
-    //           internalType: "address",
-    //           name: "",
-    //           type: "address",
-    //         },
-    //       ],
-    //       stateMutability: "view",
-    //       type: "function",
-    //     },
-    //   ],
-    //   functionName: "ownerOf",
-    //   args: [BigInt(namehash(args.basename))],
-    // });
-
-    // reclaim
-    // send
-
-    // Check current owner of the basename using ownerOf
+    // Set the address record for the basename
     try {
-      const contractAddress = isMainnet
-        ? BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_MAINNET
-        : BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_TESTNET;
+      // Step 1: Set the address record
+      const nameHash = namehash(args.basename);
+      const setAddrHash = await wallet.sendTransaction({
+        to: l2ResolverAddress,
+        data: encodeFunctionData({
+          abi: L2_RESOLVER_ABI,
+          functionName: "setAddr",
+          args: [nameHash, args.destination as `0x${string}`],
+        }),
+      });
+      const addrReceipt = await wallet.waitForTransactionReceipt(setAddrHash);
+      console.log(
+        "Set address record transaction completed in block",
+        addrReceipt.blockNumber
+      );
 
-      console.log("contractAddress", contractAddress);
+      // Step 2: Set the name record after address record completes
+      const setNameHash = await wallet.sendTransaction({
+        to: l2ResolverAddress,
+        data: encodeFunctionData({
+          abi: L2_RESOLVER_ABI,
+          functionName: "setName",
+          args: [nameHash, args.basename],
+        }),
+      });
+      const nameReceipt = await wallet.waitForTransactionReceipt(setNameHash);
+      console.log(
+        "Set name record transaction completed in block",
+        nameReceipt.blockNumber
+      );
 
-      console.log("Current owner of basename:", currentOwner);
+      // Step 3: Reclaim the basename after name record completes
+      const baseRegistrarAddress = isMainnet
+        ? BASENAMES_BASE_REGISTRAR_ADDRESS_MAINNET
+        : BASENAMES_BASE_REGISTRAR_ADDRESS_TESTNET;
+
+      // Get just the label (remove .base.eth or .basetest.eth)
+      const label = args.basename.replace(suffix, "");
+      const tokenId = BigInt(keccak256(toBytes(label)));
+      console.log("Label:", label);
+      console.log("Token ID:", tokenId.toString());
+
+      const reclaimHash = await wallet.sendTransaction({
+        to: baseRegistrarAddress,
+        data: encodeFunctionData({
+          abi: BASE_REGISTRAR_TRANSFER_ABI,
+          functionName: "reclaim",
+          args: [tokenId, args.destination as `0x${string}`],
+        }),
+        gas: 100000n,
+      });
+
+      const reclaimReceipt = await wallet.waitForTransactionReceipt(
+        reclaimHash
+      );
+      console.log(
+        "Reclaim transaction completed in block",
+        reclaimReceipt.blockNumber
+      );
     } catch (error) {
-      return `Error checking basename ownership: ${error}`;
+      console.error("Error in transfer process:", error);
+      throw new Error(
+        `Transfer failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
+
+    ////////////
+
+    return "Successfully transferred basename";
+    const contractAddress = isMainnet
+      ? BASENAMES_BASE_REGISTRAR_ADDRESS_MAINNET
+      : BASENAMES_BASE_REGISTRAR_ADDRESS_TESTNET;
+
+    console.log("contractAddress", contractAddress);
+
+    // balanceOf
+    const balance = await wallet.readContract({
+      address: contractAddress,
+      abi: BASE_REGISTRAR_TRANSFER_ABI,
+      functionName: "balanceOf",
+      args: [agentAddress],
+    });
+    console.log("balance", balance);
+
+    const tokenId = BigInt(keccak256(toBytes(args.basename)));
+    console.log("tokenId", tokenId);
 
     // First approve the transfer
     try {
-      const contractAddress = isMainnet
-        ? BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_MAINNET
-        : BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_TESTNET;
-
-      const approvalHash = await wallet.sendTransaction({
+      // reclaim
+      const reclaimHash = await wallet.sendTransaction({
         to: contractAddress,
         data: encodeFunctionData({
-          abi: REGISTRAR_TRANSFER_ABI,
-          functionName: "approve",
-          args: [contractAddress, BigInt(namehash(args.basename))],
+          abi: BASE_REGISTRAR_TRANSFER_ABI,
+          functionName: "reclaim",
+          args: [tokenId, args.destination as `0x${string}`],
         }),
       });
-
-      await wallet.waitForTransactionReceipt(approvalHash);
-      console.log("Approval transaction completed");
+      await wallet.waitForTransactionReceipt(reclaimHash);
+      console.log("Reclaim transaction completed");
+      // const contractAddress = isMainnet
+      //   ? BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_MAINNET
+      //   : BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_TESTNET;
+      // const approvalHash = await wallet.sendTransaction({
+      //   to: contractAddress,
+      //   data: encodeFunctionData({
+      //     abi: REGISTRAR_TRANSFER_ABI,
+      //     functionName: "approve",
+      //     args: [contractAddress, BigInt(namehash(args.basename))],
+      //   }),
+      // });
+      // await wallet.waitForTransactionReceipt(approvalHash);
+      // console.log("Approval transaction completed");
       return `Successfully approved basename transfer`;
     } catch (error) {
-      return `Error approving basename transfer: ${error}`;
+      return `Error reclaiming basename transfer: ${error}`;
     }
 
     // then transfer the basename

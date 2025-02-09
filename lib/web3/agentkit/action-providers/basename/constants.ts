@@ -4,6 +4,12 @@ export const BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_MAINNET =
 export const BASENAMES_REGISTRAR_CONTROLLER_ADDRESS_TESTNET =
   "0x49aE3cC2e3AA768B1e5654f5D3C6002144A59581";
 
+// for transfer needed
+export const BASENAMES_BASE_REGISTRAR_ADDRESS_MAINNET =
+  "0x03c4738Ee98aE44591e1A4A4F3CaB6641d95DD9a";
+export const BASENAMES_BASE_REGISTRAR_ADDRESS_TESTNET =
+  "0xA0c70ec36c010B55E3C434D6c6EbEEC50c705794";
+
 export const L2_RESOLVER_ADDRESS_MAINNET =
   "0xC6d566A56A1aFf6508b41f6c90ff131615583BCD";
 export const L2_RESOLVER_ADDRESS_TESTNET =
@@ -30,6 +36,16 @@ export const L2_RESOLVER_ABI = [
       { internalType: "string", name: "newName", type: "string" },
     ],
     name: "setName",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bytes32", name: "node", type: "bytes32" },
+      { internalType: "address", name: "addr", type: "address" },
+    ],
+    name: "setAddr",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -86,7 +102,44 @@ export const REGISTRAR_ABI = [
 ] as const;
 
 // added ERC721 Transfer Methods, can be integrated into the REGISTRAR_ABI
-export const REGISTRAR_TRANSFER_ABI = [
+export const BASE_REGISTRAR_TRANSFER_ABI = [
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "account",
+        type: "address",
+      },
+    ],
+    name: "balanceOf",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "id",
+        type: "uint256",
+      },
+      {
+        internalType: "address",
+        name: "owner",
+        type: "address",
+      },
+    ],
+    name: "reclaim",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
   {
     inputs: [
       {
@@ -229,4 +282,4 @@ export const REGISTRAR_TRANSFER_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
-];
+] as const;
