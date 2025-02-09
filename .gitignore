@@ -36,6 +36,3 @@ yarn-error.log*
 .vercel
 .vscode
 .env*.local
-
-# Database migrations
-lib/db/migrations/*.sql
