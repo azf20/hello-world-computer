@@ -46,6 +46,7 @@
     "@zoralabs/protocol-sdk": "^0.13.2",
     "ai": "4.1.24",
     "bcrypt-ts": "^5.0.2",
+    "canonicalize": "^2.0.0",
     "class-variance-authority": "^0.7.0",
     "classnames": "^2.5.1",
     "clsx": "^2.1.1",

@@ -12,16 +12,15 @@ import { basenameActionProvider } from "./action-providers/basename";
 
 export const setupAgentKit = async () => {
   const activeChain =
-    process.env.NEXT_PUBLIC_ACTIVE_CHAIN === "base"
-      ? "base-mainnet"
-      : "base-sepolia";
+    process.env.NEXT_PUBLIC_ACTIVE_CHAIN === "base" ? 8453 : 84532;
 
   const walletProvider = await PrivyWalletProvider.configureWithWallet({
     appId: process.env.PRIVY_APP_ID as string,
     appSecret: process.env.PRIVY_APP_SECRET as string,
-    networkId: activeChain,
+    chainId: activeChain,
     walletId: process.env.PRIVY_WALLET_ID as string,
-    authorizationKey: process.env.PRIVY_WALLET_AUTHORIZATION_KEY as string,
+    authorizationPrivateKey: process.env
+      .PRIVY_WALLET_AUTHORIZATION_KEY as string,
   });
 
   return AgentKit.from({
