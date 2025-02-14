@@ -52,7 +52,7 @@ async function registerAuthorizationKey(
   const body = {
     public_key: publicKey,
   };
-  const url = "https://api.privy.io/v1/authorization_keys";
+  const url = "https://auth.privy.io/api/v1/authorization_keys";
   const signature = getAuthorizationSignature({
     url,
     body,
@@ -204,18 +204,15 @@ export class PrivyWalletProvider extends ViemWalletProvider {
           .export({ type: "spki", format: "pem" })
           .toString();
 
-        await registerAuthorizationKey(config, publicKey);
+        const keyId = await registerAuthorizationKey(config, publicKey);
         console.log("Registered authorization key");
+        const wallet = await privy.walletApi.create({
+          chainType: "ethereum",
+          authorizationKeyIds: keyId ? [keyId] : undefined,
+        });
+        walletId = wallet.id;
+        address = wallet.address as `0x${string}`;
       }
-
-      const wallet = await privy.walletApi.create({
-        chaintype: "ethereum",
-        authorizationKeyIds: config.authorizationPrivateKey
-          ? [config.authorizationPrivateKey]
-          : undefined,
-      });
-      walletId = wallet.id;
-      address = wallet.address as `0x${string}`;
     } else {
       walletId = config.walletId;
       const wallet = await privy.walletApi.getWallet({ id: walletId });

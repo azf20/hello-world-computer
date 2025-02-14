@@ -21,6 +21,7 @@ export const setupAgentKit = async () => {
     walletId: process.env.PRIVY_WALLET_ID as string,
     authorizationPrivateKey: process.env
       .PRIVY_WALLET_AUTHORIZATION_KEY as string,
+    authorizationKeyId: process.env.PRIVY_WALLET_AUTHORIZATION_KEY_ID as string,
   });
 
   return AgentKit.from({
